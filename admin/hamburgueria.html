@@ -83,6 +83,10 @@
         <input id="novo-email" class="input" type="email" placeholder="adm@email.com">
       </div>
       <div class="field">
+        <label>Senha do ADM</label>
+        <input id="novo-senha" class="input" type="text" placeholder="mínimo 6 caracteres">
+      </div>
+      <div class="field">
         <label>Tipo de Acesso</label>
         <select id="novo-tipo" class="input" style="cursor:pointer;">
           <option value="admin">Admin (gerencia cardápio e pedidos)</option>
@@ -91,9 +95,9 @@
       </div>
       <p id="modal-msg" class="erro" style="min-height:18px;margin-bottom:10px;"></p>
       <p class="subtitulo" style="font-size:12px;margin-bottom:14px;">
-        ⓘ Um email com link de confirmação será enviado para o ADM.
+        ⓘ Você define o e-mail e a senha aqui e passa pro ADM. Ele usa esses dados pra entrar.
       </p>
-      <button id="btn-convidar" class="btn" style="width:100%;">Enviar Convite</button>
+      <button id="btn-convidar" class="btn" style="width:100%;">Criar Acesso</button>
     </div>
   </div>
 
@@ -167,27 +171,41 @@
 
     async function convidarADM() {
       const email = $('#novo-email').value.trim();
+      const senha = $('#novo-senha').value;
       const tipo = $('#novo-tipo').value;
+      $('#modal-msg').className = 'erro';
       $('#modal-msg').textContent = '';
 
       if (!email) { $('#modal-msg').textContent = 'Digite um e-mail válido.'; return; }
+      if (senha.length < 6) { $('#modal-msg').textContent = 'A senha precisa de ao menos 6 caracteres.'; return; }
 
       $('#btn-convidar').disabled = true;
 
-      // 1. Cria usuário no Supabase Auth com senha temporária
-      const { data: authUser, error: authError } = await db.auth.admin.createUser({
-        email,
-        password: Math.random().toString(36).slice(-12),  // senha aleatória
-        email_confirm: false
-      }).catch(() => ({ error: { message: 'Erro ao criar usuário. Talvez já exista.' } }));
+      // 1. Cria a conta do ADM num cliente separado
+      //    (pra não derrubar a sessão do desenvolvedor logado)
+      const clienteTemp = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
+        auth: { persistSession: false, autoRefreshToken: false }
+      });
+
+      const { data: signup, error: authError } = await clienteTemp.auth.signUp({
+        email, password: senha
+      });
 
       if (authError) {
         $('#btn-convidar').disabled = false;
-        $('#modal-msg').textContent = 'Email já cadastrado ou erro de criação.';
+        $('#modal-msg').textContent = 'Erro ao criar conta: ' + authError.message;
         return;
       }
 
-      // 2. Vincula ao usuários_hamburgueria
+      // Quando o email já existe, o Supabase retorna um usuário "fantasma"
+      // sem identities — detecta e avisa de verdade
+      if (signup.user && signup.user.identities && signup.user.identities.length === 0) {
+        $('#btn-convidar').disabled = false;
+        $('#modal-msg').textContent = 'Este e-mail já tem conta no sistema. Use outro.';
+        return;
+      }
+
+      // 2. Vincula à hamburgueria (com a sessão do desenvolvedor)
       const { error: dbError } = await db.from('usuarios_hamburgueria').insert({
         hamburgueria_id: hamburgeria.id,
         email,
@@ -197,17 +215,14 @@
 
       if (dbError) {
         $('#btn-convidar').disabled = false;
-        $('#modal-msg').textContent = 'Erro ao vincular usuário.';
+        $('#modal-msg').textContent = 'Conta criada, mas erro ao vincular: ' + dbError.message;
         return;
       }
 
-      // 3. Envia email de reset password (pra confirmar)
-      await db.auth.resetPasswordForEmail(email);
-
       $('#btn-convidar').disabled = false;
       $('#modal-msg').className = 'ok';
-      $('#modal-msg').textContent = `✓ Convite enviado! ${email} receberá um link pra confirmar a senha.`;
-      setTimeout(() => { fecharModalUser(); carregarUsuarios(); }, 2000);
+      $('#modal-msg').textContent = `✓ Acesso criado! Passe pro ADM: ${email} / ${senha}`;
+      setTimeout(() => { fecharModalUser(); carregarUsuarios(); }, 4000);
     }
 
     async function removerUsuario(userId) {
@@ -225,7 +240,7 @@
     }
 
     function abrirModalUser() { $('#modal-bg').classList.add('open'); $('#novo-email').focus(); }
-    function fecharModalUser() { $('#modal-bg').classList.remove('open'); $('#novo-email').value=''; $('#novo-tipo').value='admin'; $('#modal-msg').textContent=''; $('#modal-msg').className='erro'; }
+    function fecharModalUser() { $('#modal-bg').classList.remove('open'); $('#novo-email').value=''; $('#novo-senha').value=''; $('#novo-tipo').value='admin'; $('#modal-msg').textContent=''; $('#modal-msg').className='erro'; }
 
     $('#btn-convidar').onclick = convidarADM;
     window.abrirModalUser = abrirModalUser; window.fecharModalUser = fecharModalUser;
