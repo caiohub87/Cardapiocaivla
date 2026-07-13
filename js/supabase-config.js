@@ -5,8 +5,8 @@
 //  3. Cole a URL e a anon/public key abaixo
 // ============================================================
 
-const SUPABASE_URL  = 'https://SEU-PROJETO.supabase.co';
-const SUPABASE_ANON = 'SUA-ANON-KEY-AQUI';
+const SUPABASE_URL  = 'https://aglnzxpabovrzdlthfzs.supabase.co';
+const SUPABASE_ANON = 'sb_publishable_b_Z9OxX85pbkIf0zSMsYUA_aVyBESsP';
 
 // Cliente global (carregado via CDN no HTML)
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);

@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gerenciar Hamburgueria</title>
+  <link rel="stylesheet" href="/css/base.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    .topo { display:flex; align-items:center; justify-content:space-between; padding:18px 24px; border-bottom:1px solid var(--borda); position:sticky; top:0; background:var(--cor-background); z-index:10; }
+    .topo a { color:var(--cor-primaria); cursor:pointer; text-decoration:underline; font-size:13px; }
+    .tabs { display:flex; gap:0; border-bottom:1px solid var(--borda); margin-top:20px; }
+    .tab { padding:12px 18px; border:none; background:none; color:var(--cinza); cursor:pointer; font-size:14px; font-weight:600; border-bottom:2px solid transparent; }
+    .tab.active { color:var(--cor-texto); border-bottom-color:var(--cor-primaria); }
+    .tab-content { display:none; }
+    .tab-content.active { display:block; }
+    .usuarios-list { margin-top:20px; }
+    .user-row { display:flex; justify-content:space-between; align-items:center; padding:14px 16px; background:var(--superficie); border:1px solid var(--borda); border-radius:10px; margin-bottom:10px; }
+    .user-info { flex:1; }
+    .user-email { font-weight:600; font-size:14px; }
+    .user-tipo { font-size:12px; color:var(--cinza); margin-top:4px; }
+    .user-actions { display:flex; gap:8px; }
+    .user-actions .btn { padding:8px 12px; font-size:12px; }
+    .modal-bg { position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; place-items:center; padding:20px; z-index:50; }
+    .modal-bg.open { display:grid; }
+    .modal { width:100%; max-width:420px; }
+    .row { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
+    .hidden { display:none !important; }
+  </style>
+</head>
+<body>
+
+  <div id="tela-loading" class="center-screen"><p class="muted">Carregando…</p></div>
+
+  <div id="tela-gerenciar" class="hidden">
+    <div class="topo">
+      <div>
+        <h1 style="font-size:20px;display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+          <a href="/admin" style="cursor:pointer;text-decoration:underline;">← Voltar</a>
+          <span id="hamb-nome"></span>
+        </h1>
+        <p class="subtitulo" id="hamb-slug"></p>
+      </div>
+    </div>
+
+    <div class="container">
+      <div class="tabs">
+        <button class="tab active" onclick="abaAtiva('usuarios')">Usuários</button>
+        <button class="tab" onclick="abaAtiva('cardapio')">Cardápio (TODO)</button>
+        <button class="tab" onclick="abaAtiva('temas')">Temas (TODO)</button>
+      </div>
+
+      <!-- ABA: USUÁRIOS -->
+      <div id="aba-usuarios" class="tab-content active">
+        <div class="row" style="margin-top:20px;">
+          <h3 style="font-size:18px;">Usuários</h3>
+          <button class="btn" onclick="abrirModalUser()">+ Convidar ADM</button>
+        </div>
+        <div id="usuarios-list" class="usuarios-list"></div>
+      </div>
+
+      <!-- ABA: CARDÁPIO -->
+      <div id="aba-cardapio" class="tab-content" style="padding:40px 0;text-align:center;">
+        <p class="muted">Em desenvolvimento na Fase 2…</p>
+      </div>
+
+      <!-- ABA: TEMAS -->
+      <div id="aba-temas" class="tab-content" style="padding:40px 0;text-align:center;">
+        <p class="muted">Em desenvolvimento na Fase 3…</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: CONVIDAR ADM -->
+  <div id="modal-bg" class="modal-bg">
+    <div class="card modal">
+      <div class="row">
+        <h3 style="font-size:18px;">Convidar ADM</h3>
+        <button class="btn btn-ghost" style="padding:6px 12px;" onclick="fecharModalUser()">✕</button>
+      </div>
+      <div class="field">
+        <label>E-mail do ADM</label>
+        <input id="novo-email" class="input" type="email" placeholder="adm@email.com">
+      </div>
+      <div class="field">
+        <label>Tipo de Acesso</label>
+        <select id="novo-tipo" class="input" style="cursor:pointer;">
+          <option value="admin">Admin (gerencia cardápio e pedidos)</option>
+          <option value="garcom">Garçom (consulta cardápio)</option>
+        </select>
+      </div>
+      <p id="modal-msg" class="erro" style="min-height:18px;margin-bottom:10px;"></p>
+      <p class="subtitulo" style="font-size:12px;margin-bottom:14px;">
+        ⓘ Um email com link de confirmação será enviado para o ADM.
+      </p>
+      <button id="btn-convidar" class="btn" style="width:100%;">Enviar Convite</button>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/js/supabase-config.js"></script>
+  <script>
+    const $ = s => document.querySelector(s);
+    let hamburgeria = null;
+    let usuario = null;
+
+    async function init() {
+      // Check auth
+      const { data: session } = await db.auth.getSession();
+      if (!session.session) { location.href = '/admin'; return; }
+      usuario = session.session.user;
+
+      // Get hamburgueria ID from URL
+      const params = new URLSearchParams(location.search);
+      const hambId = params.get('id');
+      if (!hambId) { location.href = '/admin'; return; }
+
+      // Load hamburgueria
+      const { data: h } = await db
+        .from('hamburguerias')
+        .select('*')
+        .eq('id', hambId)
+        .eq('owner_email', usuario.email)
+        .single();
+
+      if (!h) { alert('Hamburgueria não encontrada'); location.href = '/admin'; return; }
+
+      hamburgeria = h;
+      $('#hamb-nome').textContent = h.nome;
+      $('#hamb-slug').textContent = '/' + h.slug;
+      $('#tela-loading').classList.add('hidden');
+      $('#tela-gerenciar').classList.remove('hidden');
+
+      carregarUsuarios();
+    }
+
+    async function carregarUsuarios() {
+      const { data: users } = await db
+        .from('usuarios_hamburgueria')
+        .select('*')
+        .eq('hamburgueria_id', hamburgeria.id)
+        .order('tipo');
+
+      const lista = $('#usuarios-list');
+      lista.innerHTML = '';
+
+      if (!users || users.length === 0) {
+        lista.innerHTML = '<p class="muted">Nenhum usuário vinculado ainda.</p>';
+        return;
+      }
+
+      users.forEach(u => {
+        const row = document.createElement('div');
+        row.className = 'user-row';
+        const tipoLabel = u.tipo === 'owner' ? '👑 Dono' : u.tipo === 'admin' ? '⚙️ Admin' : '👨‍💼 Garçom';
+        row.innerHTML = `
+          <div class="user-info">
+            <div class="user-email">${u.email}</div>
+            <div class="user-tipo">${tipoLabel}${u.ativo ? '' : ' · Desativado'}</div>
+          </div>
+          <div class="user-actions">
+            ${u.tipo !== 'owner' ? `<button class="btn btn-ghost" onclick="removerUsuario('${u.id}')">Remover</button>` : ''}
+          </div>`;
+        lista.appendChild(row);
+      });
+    }
+
+    async function convidarADM() {
+      const email = $('#novo-email').value.trim();
+      const tipo = $('#novo-tipo').value;
+      $('#modal-msg').textContent = '';
+
+      if (!email) { $('#modal-msg').textContent = 'Digite um e-mail válido.'; return; }
+
+      $('#btn-convidar').disabled = true;
+
+      // 1. Cria usuário no Supabase Auth com senha temporária
+      const { data: authUser, error: authError } = await db.auth.admin.createUser({
+        email,
+        password: Math.random().toString(36).slice(-12),  // senha aleatória
+        email_confirm: false
+      }).catch(() => ({ error: { message: 'Erro ao criar usuário. Talvez já exista.' } }));
+
+      if (authError) {
+        $('#btn-convidar').disabled = false;
+        $('#modal-msg').textContent = 'Email já cadastrado ou erro de criação.';
+        return;
+      }
+
+      // 2. Vincula ao usuários_hamburgueria
+      const { error: dbError } = await db.from('usuarios_hamburgueria').insert({
+        hamburgueria_id: hamburgeria.id,
+        email,
+        tipo,
+        ativo: true
+      });
+
+      if (dbError) {
+        $('#btn-convidar').disabled = false;
+        $('#modal-msg').textContent = 'Erro ao vincular usuário.';
+        return;
+      }
+
+      // 3. Envia email de reset password (pra confirmar)
+      await db.auth.resetPasswordForEmail(email);
+
+      $('#btn-convidar').disabled = false;
+      $('#modal-msg').className = 'ok';
+      $('#modal-msg').textContent = `✓ Convite enviado! ${email} receberá um link pra confirmar a senha.`;
+      setTimeout(() => { fecharModalUser(); carregarUsuarios(); }, 2000);
+    }
+
+    async function removerUsuario(userId) {
+      if (!confirm('Tem certeza? Este usuário perderá acesso.')) return;
+      const { error } = await db.from('usuarios_hamburgueria').delete().eq('id', userId);
+      if (error) { alert('Erro ao remover: ' + error.message); return; }
+      carregarUsuarios();
+    }
+
+    function abaAtiva(nome) {
+      document.querySelectorAll('.tab').forEach((t, i) => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      document.querySelectorAll('.tab')[['usuarios', 'cardapio', 'temas'].indexOf(nome)].classList.add('active');
+      $(`#aba-${nome}`).classList.add('active');
+    }
+
+    function abrirModalUser() { $('#modal-bg').classList.add('open'); $('#novo-email').focus(); }
+    function fecharModalUser() { $('#modal-bg').classList.remove('open'); $('#novo-email').value=''; $('#novo-tipo').value='admin'; $('#modal-msg').textContent=''; $('#modal-msg').className='erro'; }
+
+    $('#btn-convidar').onclick = convidarADM;
+    window.abrirModalUser = abrirModalUser; window.fecharModalUser = fecharModalUser;
+    window.removerUsuario = removerUsuario; window.abaAtiva = abaAtiva;
+
+    init();
+  </script>
+</body>
+</html>
