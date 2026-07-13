@@ -57,7 +57,9 @@
       </div>
       <p id="login-msg" class="erro" style="min-height:18px;margin-bottom:10px;"></p>
       <button id="btn-entrar" class="btn" style="width:100%;">Entrar</button>
-      <button id="btn-criar-conta" class="btn btn-ghost" style="width:100%;margin-top:10px;">Criar conta</button>
+      <p class="subtitulo" style="font-size:12px;margin-top:14px;text-align:center;">
+        Acesso restrito. Contas são criadas pelo desenvolvedor no Supabase.
+      </p>
     </div>
   </div>
 
@@ -138,17 +140,6 @@
       if (error) { $('#login-msg').textContent = traduzErro(error.message); return; }
       usuario = data.user;
       mostrarPainel();
-    }
-
-    async function criarConta() {
-      const email = $('#email').value.trim();
-      const senha = $('#senha').value;
-      $('#login-msg').textContent = '';
-      if (senha.length < 6) { $('#login-msg').textContent = 'A senha precisa de ao menos 6 caracteres.'; return; }
-      const { data, error } = await db.auth.signUp({ email, password: senha });
-      if (error) { $('#login-msg').textContent = traduzErro(error.message); return; }
-      if (data.session) { usuario = data.user; mostrarPainel(); }
-      else { $('#login-msg').className = 'ok'; $('#login-msg').textContent = 'Conta criada! Verifique seu e-mail para confirmar, depois faça login.'; }
     }
 
     async function sair() {
@@ -244,7 +235,6 @@
 
     // ---------- eventos ----------
     $('#btn-entrar').onclick = entrar;
-    $('#btn-criar-conta').onclick = criarConta;
     $('#btn-sair').onclick = sair;
     $('#btn-nova').onclick = abrirModal;
     $('#btn-salvar').onclick = salvarHamburgueria;
