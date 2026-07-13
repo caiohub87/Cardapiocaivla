@@ -193,48 +193,59 @@ alter table usuarios_hamburgueria   enable row level security;
 alter table sessoes_garcom          enable row level security;
 
 -- ---------- HAMBURGUERIAS ----------
+drop policy if exists "hamb_leitura_publica" on hamburguerias;
 create policy "hamb_leitura_publica" on hamburguerias
   for select using (ativa = true);
 
+drop policy if exists "hamb_insert_autenticado" on hamburguerias;
 create policy "hamb_insert_autenticado" on hamburguerias
   for insert to authenticated
   with check (owner_email = auth.email());
 
+drop policy if exists "hamb_update_dono" on hamburguerias;
 create policy "hamb_update_dono" on hamburguerias
   for update to authenticated
   using (pertence_hamburgueria(id));
 
 -- ---------- TEMAS ----------
+drop policy if exists "temas_leitura_publica" on temas;
 create policy "temas_leitura_publica" on temas
   for select using (true);
 
+drop policy if exists "temas_escrita_dono" on temas;
 create policy "temas_escrita_dono" on temas
   for all to authenticated
   using (pertence_hamburgueria(hamburgueria_id))
   with check (pertence_hamburgueria(hamburgueria_id));
 
 -- ---------- CATEGORIAS ----------
+drop policy if exists "cat_leitura_publica" on categorias;
 create policy "cat_leitura_publica" on categorias
   for select using (true);
 
+drop policy if exists "cat_escrita_dono" on categorias;
 create policy "cat_escrita_dono" on categorias
   for all to authenticated
   using (pertence_hamburgueria(hamburgueria_id))
   with check (pertence_hamburgueria(hamburgueria_id));
 
 -- ---------- PRODUTOS ----------
+drop policy if exists "prod_leitura_publica" on produtos;
 create policy "prod_leitura_publica" on produtos
   for select using (true);
 
+drop policy if exists "prod_escrita_dono" on produtos;
 create policy "prod_escrita_dono" on produtos
   for all to authenticated
   using (pertence_hamburgueria(hamburgueria_id))
   with check (pertence_hamburgueria(hamburgueria_id));
 
 -- ---------- VARIANTES ----------
+drop policy if exists "var_leitura_publica" on variantes;
 create policy "var_leitura_publica" on variantes
   for select using (true);
 
+drop policy if exists "var_escrita_dono" on variantes;
 create policy "var_escrita_dono" on variantes
   for all to authenticated
   using (exists (
@@ -249,9 +260,11 @@ create policy "var_escrita_dono" on variantes
   ));
 
 -- ---------- ADITIVOS ----------
+drop policy if exists "adit_leitura_publica" on aditivos;
 create policy "adit_leitura_publica" on aditivos
   for select using (true);
 
+drop policy if exists "adit_escrita_dono" on aditivos;
 create policy "adit_escrita_dono" on aditivos
   for all to authenticated
   using (pertence_hamburgueria(hamburgueria_id))
@@ -259,22 +272,27 @@ create policy "adit_escrita_dono" on aditivos
 
 -- ---------- PEDIDOS ----------
 -- Cliente (anon) pode criar pedido
+drop policy if exists "pedido_insert_publico" on pedidos;
 create policy "pedido_insert_publico" on pedidos
   for insert with check (true);
 
 -- Só a hamburgueria lê/edita seus pedidos
+drop policy if exists "pedido_leitura_dono" on pedidos;
 create policy "pedido_leitura_dono" on pedidos
   for select to authenticated
   using (pertence_hamburgueria(hamburgueria_id));
 
+drop policy if exists "pedido_update_dono" on pedidos;
 create policy "pedido_update_dono" on pedidos
   for update to authenticated
   using (pertence_hamburgueria(hamburgueria_id));
 
 -- ---------- ITENS DO PEDIDO ----------
+drop policy if exists "item_insert_publico" on itens_pedido;
 create policy "item_insert_publico" on itens_pedido
   for insert with check (true);
 
+drop policy if exists "item_leitura_dono" on itens_pedido;
 create policy "item_leitura_dono" on itens_pedido
   for select to authenticated
   using (exists (
@@ -284,22 +302,27 @@ create policy "item_leitura_dono" on itens_pedido
   ));
 
 -- ---------- USUÁRIOS ----------
+drop policy if exists "user_leitura_dono" on usuarios_hamburgueria;
 create policy "user_leitura_dono" on usuarios_hamburgueria
   for select to authenticated
   using (email = auth.email() or pertence_hamburgueria(hamburgueria_id));
 
+drop policy if exists "user_insert_autenticado" on usuarios_hamburgueria;
 create policy "user_insert_autenticado" on usuarios_hamburgueria
   for insert to authenticated
   with check (true);
 
+drop policy if exists "user_escrita_dono" on usuarios_hamburgueria;
 create policy "user_escrita_dono" on usuarios_hamburgueria
   for update to authenticated
   using (pertence_hamburgueria(hamburgueria_id));
 
 -- ---------- SESSÕES GARÇOM ----------
+drop policy if exists "sessao_leitura_publica" on sessoes_garcom;
 create policy "sessao_leitura_publica" on sessoes_garcom
   for select using (ativa = true);
 
+drop policy if exists "sessao_escrita_dono" on sessoes_garcom;
 create policy "sessao_escrita_dono" on sessoes_garcom
   for all to authenticated
   using (pertence_hamburgueria(hamburgueria_id))
@@ -308,7 +331,12 @@ create policy "sessao_escrita_dono" on sessoes_garcom
 -- ============================================================
 --  REALTIME (notificar ADM de novos pedidos)
 -- ============================================================
-alter publication supabase_realtime add table pedidos;
+do $$
+begin
+  alter publication supabase_realtime add table pedidos;
+exception when duplicate_object then
+  null; -- já adicionado, ignora
+end $$;
 
 -- ============================================================
 --  FIM DO SCHEMA
