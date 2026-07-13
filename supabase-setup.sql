@@ -317,6 +317,11 @@ create policy "user_escrita_dono" on usuarios_hamburgueria
   for update to authenticated
   using (pertence_hamburgueria(hamburgueria_id));
 
+drop policy if exists "user_delete_dono" on usuarios_hamburgueria;
+create policy "user_delete_dono" on usuarios_hamburgueria
+  for delete to authenticated
+  using (pertence_hamburgueria(hamburgueria_id));
+
 -- ---------- SESSÕES GARÇOM ----------
 drop policy if exists "sessao_leitura_publica" on sessoes_garcom;
 create policy "sessao_leitura_publica" on sessoes_garcom
@@ -337,6 +342,29 @@ begin
 exception when duplicate_object then
   null; -- já adicionado, ignora
 end $$;
+
+-- ============================================================
+--  STORAGE (imagens dos produtos) — Fase 2
+-- ============================================================
+insert into storage.buckets (id, name, public)
+values ('imagens', 'imagens', true)
+on conflict (id) do nothing;
+
+drop policy if exists "imagens_leitura_publica" on storage.objects;
+create policy "imagens_leitura_publica" on storage.objects
+  for select using (bucket_id = 'imagens');
+
+drop policy if exists "imagens_upload_autenticado" on storage.objects;
+create policy "imagens_upload_autenticado" on storage.objects
+  for insert to authenticated with check (bucket_id = 'imagens');
+
+drop policy if exists "imagens_update_autenticado" on storage.objects;
+create policy "imagens_update_autenticado" on storage.objects
+  for update to authenticated using (bucket_id = 'imagens');
+
+drop policy if exists "imagens_delete_autenticado" on storage.objects;
+create policy "imagens_delete_autenticado" on storage.objects
+  for delete to authenticated using (bucket_id = 'imagens');
 
 -- ============================================================
 --  FIM DO SCHEMA

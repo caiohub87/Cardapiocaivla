@@ -23,9 +23,24 @@
     .user-actions .btn { padding:8px 12px; font-size:12px; }
     .modal-bg { position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; place-items:center; padding:20px; z-index:50; }
     .modal-bg.open { display:grid; }
-    .modal { width:100%; max-width:420px; }
+    .modal { width:100%; max-width:420px; max-height:90vh; overflow-y:auto; }
     .row { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
     .hidden { display:none !important; }
+
+    /* ---- Fase 2: cardápio ---- */
+    .linha-item { display:flex; align-items:center; gap:10px; padding:12px 16px; background:var(--superficie); border:1px solid var(--borda); border-radius:10px; margin-bottom:8px; }
+    .linha-item.off { opacity:.5; }
+    .linha-acoes { display:flex; gap:6px; flex-wrap:wrap; }
+    .btn-mini { padding:6px 10px; font-size:12px; border:1px solid var(--borda); background:var(--superficie); color:var(--cor-texto); border-radius:8px; cursor:pointer; }
+    .btn-mini:hover:not(:disabled) { border-color:var(--cor-primaria); }
+    .btn-mini:disabled { opacity:.3; cursor:not-allowed; }
+    .btn-mini.toggle.on { background:var(--cor-primaria); color:var(--cor-secundaria); border-color:var(--cor-primaria); font-weight:700; }
+    .grupo-titulo { margin:22px 0 12px; font-size:15px; color:var(--cinza); }
+    .prod-card { padding:12px; display:flex; flex-direction:column; gap:6px; }
+    .prod-card.off { opacity:.55; }
+    .prod-card img { width:100%; height:110px; object-fit:cover; border-radius:10px; }
+    .prod-card .sem-img { width:100%; height:110px; border-radius:10px; background:rgba(0,0,0,.3); display:grid; place-items:center; font-size:34px; }
+    .prod-preco { color:var(--cor-primaria); font-weight:800; }
   </style>
 </head>
 <body>
@@ -60,8 +75,24 @@
       </div>
 
       <!-- ABA: CARDÁPIO -->
-      <div id="aba-cardapio" class="tab-content" style="padding:40px 0;text-align:center;">
-        <p class="muted">Em desenvolvimento na Fase 2…</p>
+      <div id="aba-cardapio" class="tab-content">
+        <div class="row" style="margin-top:20px;">
+          <h3 style="font-size:18px;">Categorias</h3>
+          <button class="btn" onclick="abrirModalCategoria()">+ Nova Categoria</button>
+        </div>
+        <div id="cats-list"></div>
+
+        <div class="row" style="margin-top:34px;">
+          <h3 style="font-size:18px;">Produtos</h3>
+          <button class="btn" onclick="abrirModalProduto()">+ Novo Produto</button>
+        </div>
+        <div id="prods-list"></div>
+
+        <div class="row" style="margin-top:34px;">
+          <h3 style="font-size:18px;">Adicionais</h3>
+          <button class="btn" onclick="abrirModalAditivo()">+ Novo Adicional</button>
+        </div>
+        <div id="adits-list"></div>
       </div>
 
       <!-- ABA: TEMAS -->
@@ -101,8 +132,86 @@
     </div>
   </div>
 
+  <!-- MODAL: CATEGORIA -->
+  <div id="modal-categoria" class="modal-bg">
+    <div class="card modal">
+      <div class="row">
+        <h3 style="font-size:18px;">Categoria</h3>
+        <button class="btn btn-ghost" style="padding:6px 12px;" onclick="fecharModal('modal-categoria')">✕</button>
+      </div>
+      <input type="hidden" id="cat-id">
+      <div class="field">
+        <label>Nome</label>
+        <input id="cat-nome" class="input" placeholder="Ex: Hambúrgueres">
+      </div>
+      <div class="field">
+        <label>Ícone (emoji, opcional)</label>
+        <input id="cat-icone" class="input" placeholder="🍔" maxlength="4">
+      </div>
+      <p id="cat-msg" class="erro" style="min-height:18px;margin-bottom:10px;"></p>
+      <button id="btn-salvar-cat" class="btn" style="width:100%;" onclick="salvarCategoria()">Salvar</button>
+    </div>
+  </div>
+
+  <!-- MODAL: PRODUTO -->
+  <div id="modal-produto" class="modal-bg">
+    <div class="card modal">
+      <div class="row">
+        <h3 style="font-size:18px;">Produto</h3>
+        <button class="btn btn-ghost" style="padding:6px 12px;" onclick="fecharModal('modal-produto')">✕</button>
+      </div>
+      <input type="hidden" id="prod-id">
+      <input type="hidden" id="prod-img-atual">
+      <div id="prod-img-preview"></div>
+      <div class="field">
+        <label>Nome</label>
+        <input id="prod-nome" class="input" placeholder="Ex: X-Bacon Duplo">
+      </div>
+      <div class="field">
+        <label>Descrição</label>
+        <input id="prod-desc" class="input" placeholder="Ex: 2 carnes, bacon crocante, cheddar">
+      </div>
+      <div class="field">
+        <label>Preço (R$)</label>
+        <input id="prod-preco" class="input" placeholder="29,90" inputmode="decimal">
+      </div>
+      <div class="field">
+        <label>Categoria</label>
+        <select id="prod-categoria" class="input" style="cursor:pointer;"></select>
+      </div>
+      <div class="field">
+        <label>Foto do produto</label>
+        <input id="prod-imagem" class="input" type="file" accept="image/*">
+      </div>
+      <p id="prod-msg" class="erro" style="min-height:18px;margin-bottom:10px;"></p>
+      <button id="btn-salvar-prod" class="btn" style="width:100%;" onclick="salvarProduto()">Salvar</button>
+    </div>
+  </div>
+
+  <!-- MODAL: ADICIONAL -->
+  <div id="modal-aditivo" class="modal-bg">
+    <div class="card modal">
+      <div class="row">
+        <h3 style="font-size:18px;">Adicional</h3>
+        <button class="btn btn-ghost" style="padding:6px 12px;" onclick="fecharModal('modal-aditivo')">✕</button>
+      </div>
+      <input type="hidden" id="adit-id">
+      <div class="field">
+        <label>Nome</label>
+        <input id="adit-nome" class="input" placeholder="Ex: Bacon extra">
+      </div>
+      <div class="field">
+        <label>Preço adicional (R$)</label>
+        <input id="adit-preco" class="input" placeholder="4,50" inputmode="decimal">
+      </div>
+      <p id="adit-msg" class="erro" style="min-height:18px;margin-bottom:10px;"></p>
+      <button id="btn-salvar-adit" class="btn" style="width:100%;" onclick="salvarAditivo()">Salvar</button>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="/js/supabase-config.js"></script>
+  <script src="/js/admin-cardapio.js"></script>
   <script>
     const $ = s => document.querySelector(s);
     let hamburgeria = null;
@@ -136,6 +245,7 @@
       $('#tela-gerenciar').classList.remove('hidden');
 
       carregarUsuarios();
+      initCardapio(hamburgeria);   // Fase 2: cardápio
     }
 
     async function carregarUsuarios() {
