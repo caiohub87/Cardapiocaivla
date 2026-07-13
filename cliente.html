@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cardápio</title>
+  <link rel="stylesheet" href="/css/base.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    .hero {
+      padding:28px 24px 20px;
+      display:flex; align-items:center; gap:16px;
+      border-bottom:1px solid var(--borda);
+    }
+    .hero img.logo { width:56px; height:56px; border-radius:14px; object-fit:cover; }
+    .hero .nome { font-size:24px; font-weight:800; }
+    .categoria-titulo { font-size:20px; font-weight:700; margin:28px 0 14px; }
+    .produto {
+      background:var(--superficie); border:1px solid var(--borda);
+      border-radius:var(--raio); overflow:hidden; display:flex; flex-direction:column;
+    }
+    .produto img { width:100%; height:150px; object-fit:cover; background:rgba(0,0,0,.3); }
+    .produto .info { padding:14px; display:flex; flex-direction:column; gap:6px; flex:1; }
+    .produto .nome { font-weight:700; }
+    .produto .desc { font-size:13px; color:var(--cinza); flex:1; }
+    .produto .preco { font-size:18px; font-weight:800; color:var(--cor-primaria); }
+    .indisponivel { opacity:.5; }
+  </style>
+</head>
+<body>
+  <div id="app" class="center-screen"><p class="muted">Carregando cardápio…</p></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/js/supabase-config.js"></script>
+  <script src="/js/temas.js"></script>
+  <script>
+    const money = v => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
+
+    async function iniciar() {
+      const slug = slugDaURL();
+      const ctx = await carregarTema(slug);
+
+      if (!ctx) {
+        document.getElementById('app').innerHTML =
+          `<div style="text-align:center"><h1>Loja não encontrada</h1>
+           <p class="muted">Verifique o endereço.</p></div>`;
+        return;
+      }
+
+      const h = ctx.hamburgueria;
+      document.title = h.nome + ' · Cardápio';
+
+      // busca categorias + produtos em paralelo
+      const [{ data: cats }, { data: prods }] = await Promise.all([
+        db.from('categorias').select('*').eq('hamburgueria_id', h.id).eq('ativa', true).order('ordem'),
+        db.from('produtos').select('*').eq('hamburgueria_id', h.id).order('ordem')
+      ]);
+
+      renderiza(h, ctx.tema, cats || [], prods || []);
+    }
+
+    function renderiza(h, tema, cats, prods) {
+      const app = document.getElementById('app');
+      app.className = '';
+
+      let html = `
+        <div class="hero">
+          ${tema.logo_url ? `<img class="logo" src="${tema.logo_url}" alt="">` : ''}
+          <div>
+            <div class="nome">${h.nome}</div>
+            <div class="subtitulo">Cardápio digital</div>
+          </div>
+        </div>
+        <div class="container">`;
+
+      if (prods.length === 0) {
+        html += `<div style="text-align:center;padding:60px 0" class="muted">
+                   Cardápio ainda não tem produtos.</div>`;
+      } else {
+        const semCat = prods.filter(p => !p.categoria_id);
+        cats.forEach(c => {
+          const doGrupo = prods.filter(p => p.categoria_id === c.id);
+          if (doGrupo.length) html += grupoHTML(`${c.icone||''} ${c.nome}`, doGrupo);
+        });
+        if (semCat.length) html += grupoHTML('Outros', semCat);
+      }
+
+      html += `</div>`;
+      app.innerHTML = html;
+    }
+
+    function grupoHTML(titulo, produtos) {
+      return `<h2 class="categoria-titulo">${titulo}</h2>
+        <div class="grid">${produtos.map(cardProduto).join('')}</div>`;
+    }
+
+    function cardProduto(p) {
+      return `<div class="produto ${p.disponivel ? '' : 'indisponivel'}">
+        ${p.imagem_url ? `<img src="${p.imagem_url}" alt="">` : ''}
+        <div class="info">
+          <div class="nome">${p.nome}</div>
+          <div class="desc">${p.descricao || ''}</div>
+          <div class="preco">${money(p.preco)}</div>
+          ${p.disponivel ? '' : '<span class="badge" style="background:#555;color:#fff">Indisponível</span>'}
+        </div>
+      </div>`;
+    }
+
+    iniciar();
+  </script>
+</body>
+</html>

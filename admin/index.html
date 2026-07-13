@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Painel Desenvolvedor · Cardápio</title>
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    .topo {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:18px 24px; border-bottom:1px solid var(--borda);
+      position:sticky; top:0; background:var(--cor-background); z-index:10;
+    }
+    .topo h1 { font-size:18px; display:flex; align-items:center; gap:10px; }
+    .logo-mark {
+      width:34px; height:34px; border-radius:10px;
+      background:var(--cor-primaria); color:var(--cor-secundaria);
+      display:grid; place-items:center; font-size:20px;
+    }
+    .hamb-card { display:flex; flex-direction:column; gap:12px; }
+    .hamb-card .swatch { display:flex; gap:6px; }
+    .swatch span { width:22px; height:22px; border-radius:6px; border:1px solid var(--borda); }
+    .hamb-card .acoes { display:flex; gap:8px; margin-top:4px; flex-wrap:wrap; }
+    .hamb-card .acoes .btn { padding:9px 14px; font-size:13px; }
+    .vazio { text-align:center; padding:60px 20px; }
+    .modal-bg {
+      position:fixed; inset:0; background:rgba(0,0,0,.6);
+      display:none; place-items:center; padding:20px; z-index:50;
+    }
+    .modal-bg.open { display:grid; }
+    .modal { width:100%; max-width:440px; }
+    .row { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
+    .slug-preview { font-size:13px; color:var(--cinza); margin-top:-8px; margin-bottom:16px; }
+    .slug-preview b { color:var(--cor-primaria); }
+    .hidden { display:none !important; }
+  </style>
+</head>
+<body>
+
+  <!-- ============ TELA DE LOGIN ============ -->
+  <div id="tela-login" class="center-screen">
+    <div class="card modal">
+      <h1 style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+        <span class="logo-mark">🍔</span> Painel Desenvolvedor
+      </h1>
+      <p class="subtitulo" style="margin-bottom:22px;">Gerencie todas as suas hamburguerias em um só lugar.</p>
+
+      <div class="field">
+        <label>E-mail</label>
+        <input id="email" class="input" type="email" placeholder="voce@email.com">
+      </div>
+      <div class="field">
+        <label>Senha</label>
+        <input id="senha" class="input" type="password" placeholder="••••••••">
+      </div>
+      <p id="login-msg" class="erro" style="min-height:18px;margin-bottom:10px;"></p>
+      <button id="btn-entrar" class="btn" style="width:100%;">Entrar</button>
+      <button id="btn-criar-conta" class="btn btn-ghost" style="width:100%;margin-top:10px;">Criar conta</button>
+    </div>
+  </div>
+
+  <!-- ============ PAINEL ============ -->
+  <div id="tela-painel" class="hidden">
+    <div class="topo">
+      <h1><span class="logo-mark">🍔</span> Painel Desenvolvedor</h1>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <span id="user-email" class="muted" style="font-size:13px;"></span>
+        <button id="btn-sair" class="btn btn-ghost" style="padding:8px 14px;font-size:13px;">Sair</button>
+      </div>
+    </div>
+
+    <div class="container">
+      <div class="row">
+        <div>
+          <h2 class="titulo" style="font-size:26px;">Minhas Hamburguerias</h2>
+          <p class="subtitulo">Cada uma tem seu próprio cardápio, tema e URL.</p>
+        </div>
+        <button id="btn-nova" class="btn">+ Nova Hamburgueria</button>
+      </div>
+
+      <div id="lista" class="grid"></div>
+
+      <div id="vazio" class="vazio hidden">
+        <div style="font-size:48px;margin-bottom:12px;">🍔</div>
+        <h3>Nenhuma hamburgueria ainda</h3>
+        <p class="subtitulo" style="margin:8px 0 20px;">Crie a primeira para começar.</p>
+        <button class="btn" onclick="abrirModal()">+ Criar primeira</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ MODAL NOVA HAMBURGUERIA ============ -->
+  <div id="modal-bg" class="modal-bg">
+    <div class="card modal">
+      <div class="row">
+        <h3 style="font-size:20px;">Nova Hamburgueria</h3>
+        <button class="btn btn-ghost" style="padding:6px 12px;" onclick="fecharModal()">✕</button>
+      </div>
+      <div class="field">
+        <label>Nome</label>
+        <input id="nova-nome" class="input" placeholder="Ex: Burger do Zé">
+      </div>
+      <p class="slug-preview">URL: /<b id="slug-preview">burger-do-ze</b></p>
+      <p id="modal-msg" class="erro" style="min-height:18px;"></p>
+      <button id="btn-salvar" class="btn" style="width:100%;">Criar</button>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/js/supabase-config.js"></script>
+  <script>
+    // ---------- helpers ----------
+    const $ = s => document.querySelector(s);
+    const gerarSlug = txt => txt.toLowerCase().trim()
+      .normalize('NFD').replace(/[̀-ͯ]/g,'')   // remove acentos
+      .replace(/[^a-z0-9\s-]/g,'').replace(/\s+/g,'-').replace(/-+/g,'-');
+
+    let usuario = null;
+
+    // ---------- AUTH ----------
+    async function checarSessao() {
+      const { data } = await db.auth.getSession();
+      if (data.session) {
+        usuario = data.session.user;
+        mostrarPainel();
+      } else {
+        $('#tela-login').classList.remove('hidden');
+      }
+    }
+
+    async function entrar() {
+      const email = $('#email').value.trim();
+      const senha = $('#senha').value;
+      $('#login-msg').textContent = '';
+      const { data, error } = await db.auth.signInWithPassword({ email, password: senha });
+      if (error) { $('#login-msg').textContent = traduzErro(error.message); return; }
+      usuario = data.user;
+      mostrarPainel();
+    }
+
+    async function criarConta() {
+      const email = $('#email').value.trim();
+      const senha = $('#senha').value;
+      $('#login-msg').textContent = '';
+      if (senha.length < 6) { $('#login-msg').textContent = 'A senha precisa de ao menos 6 caracteres.'; return; }
+      const { data, error } = await db.auth.signUp({ email, password: senha });
+      if (error) { $('#login-msg').textContent = traduzErro(error.message); return; }
+      if (data.session) { usuario = data.user; mostrarPainel(); }
+      else { $('#login-msg').className = 'ok'; $('#login-msg').textContent = 'Conta criada! Verifique seu e-mail para confirmar, depois faça login.'; }
+    }
+
+    async function sair() {
+      await db.auth.signOut();
+      location.reload();
+    }
+
+    function traduzErro(m) {
+      if (/invalid login/i.test(m)) return 'E-mail ou senha incorretos.';
+      if (/already registered/i.test(m)) return 'Este e-mail já tem conta. Faça login.';
+      if (/not confirmed/i.test(m)) return 'Confirme seu e-mail antes de entrar.';
+      return m;
+    }
+
+    // ---------- PAINEL ----------
+    function mostrarPainel() {
+      $('#tela-login').classList.add('hidden');
+      $('#tela-painel').classList.remove('hidden');
+      $('#user-email').textContent = usuario.email;
+      carregarHamburguerias();
+    }
+
+    async function carregarHamburguerias() {
+      const { data, error } = await db
+        .from('hamburguerias')
+        .select('id, nome, slug, ativa, temas(*)')
+        .eq('owner_email', usuario.email)
+        .order('criada_em', { ascending: false });
+
+      const lista = $('#lista');
+      lista.innerHTML = '';
+      if (error) { lista.innerHTML = `<p class="erro">Erro ao carregar: ${error.message}</p>`; return; }
+
+      if (!data || data.length === 0) { $('#vazio').classList.remove('hidden'); return; }
+      $('#vazio').classList.add('hidden');
+
+      data.forEach(h => {
+        const t = h.temas || {};
+        const card = document.createElement('div');
+        card.className = 'card hamb-card';
+        card.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:start;">
+            <strong style="font-size:17px;">${h.nome}</strong>
+            <span class="badge">/${h.slug}</span>
+          </div>
+          <div class="swatch">
+            <span style="background:${t.cor_primaria||'#D4AF37'}"></span>
+            <span style="background:${t.cor_secundaria||'#000'}"></span>
+            <span style="background:${t.cor_background||'#1a1a1a'}"></span>
+          </div>
+          <div class="acoes">
+            <a class="btn" href="/${h.slug}" target="_blank">Ver loja ↗</a>
+            <a class="btn btn-ghost" href="/admin/hamburgueria?id=${h.id}">Gerenciar</a>
+          </div>`;
+        lista.appendChild(card);
+      });
+    }
+
+    // ---------- CRIAR ----------
+    function abrirModal() { $('#modal-bg').classList.add('open'); $('#nova-nome').focus(); }
+    function fecharModal() { $('#modal-bg').classList.remove('open'); $('#nova-nome').value=''; $('#modal-msg').textContent=''; }
+
+    async function salvarHamburgueria() {
+      const nome = $('#nova-nome').value.trim();
+      const slug = gerarSlug(nome);
+      $('#modal-msg').textContent = '';
+      if (!nome) { $('#modal-msg').textContent = 'Digite um nome.'; return; }
+
+      $('#btn-salvar').disabled = true;
+
+      // 1. cria hamburgueria
+      const { data: h, error: e1 } = await db.from('hamburguerias')
+        .insert({ nome, slug, owner_email: usuario.email })
+        .select().single();
+
+      if (e1) {
+        $('#btn-salvar').disabled = false;
+        $('#modal-msg').textContent = /duplicate|unique/i.test(e1.message)
+          ? 'Já existe uma hamburgueria com essa URL. Mude o nome.' : e1.message;
+        return;
+      }
+
+      // 2. tema padrão + 3. vincula owner (em paralelo)
+      await Promise.all([
+        db.from('temas').insert({ hamburgueria_id: h.id }),
+        db.from('usuarios_hamburgueria').insert({ hamburgueria_id: h.id, email: usuario.email, tipo: 'owner' })
+      ]);
+
+      $('#btn-salvar').disabled = false;
+      fecharModal();
+      carregarHamburguerias();
+    }
+
+    // ---------- eventos ----------
+    $('#btn-entrar').onclick = entrar;
+    $('#btn-criar-conta').onclick = criarConta;
+    $('#btn-sair').onclick = sair;
+    $('#btn-nova').onclick = abrirModal;
+    $('#btn-salvar').onclick = salvarHamburgueria;
+    $('#nova-nome').oninput = e => $('#slug-preview').textContent = gerarSlug(e.target.value) || 'sua-loja';
+    $('#senha').addEventListener('keydown', e => { if (e.key === 'Enter') entrar(); });
+    window.abrirModal = abrirModal; window.fecharModal = fecharModal;
+
+    checarSessao();
+  </script>
+</body>
+</html>
