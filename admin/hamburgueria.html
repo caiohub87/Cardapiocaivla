@@ -46,6 +46,12 @@
     .check { display:flex; align-items:center; gap:6px; font-size:14px; color:var(--cor-texto); cursor:pointer; margin-bottom:0; }
     .check input { width:16px; height:16px; accent-color:var(--cor-primaria); cursor:pointer; }
     .pv-phone { border-radius:26px; border:1px solid var(--borda); padding:20px; max-width:340px; box-shadow:var(--sombra); transition:background .2s, color .2s; }
+    .paletas-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:10px; }
+    .paleta { display:flex; flex-direction:column; align-items:center; gap:6px; padding:10px 6px; background:var(--superficie); border:1px solid var(--borda); border-radius:12px; cursor:pointer; color:var(--cor-texto); transition:border var(--transicao), transform var(--transicao); }
+    .paleta:hover { border-color:var(--cor-primaria); transform:translateY(-2px); }
+    .paleta-dots { display:flex; gap:4px; }
+    .paleta-dots i { width:18px; height:18px; border-radius:50%; border:1px solid rgba(255,255,255,.2); }
+    .paleta small { font-size:11px; color:var(--cinza); }
     .prod-card { padding:12px; display:flex; flex-direction:column; gap:6px; }
     .prod-card.off { opacity:.55; }
     .prod-card img { width:100%; height:110px; object-fit:cover; border-radius:10px; }
@@ -111,7 +117,11 @@
 
           <!-- FORMULÁRIO -->
           <div>
-            <h3 style="font-size:18px;margin-bottom:16px;">Identidade visual</h3>
+            <h3 style="font-size:18px;margin-bottom:16px;">Biblioteca de cores</h3>
+            <p class="subtitulo" style="font-size:12px;margin:-10px 0 12px;">Clique numa paleta pra aplicar. Depois ajuste cada cor como quiser.</p>
+            <div id="paletas-grid" class="paletas-grid"></div>
+
+            <h3 style="font-size:18px;margin:24px 0 16px;">Identidade visual</h3>
 
             <div class="cores-grid">
               <div class="field">
@@ -140,6 +150,14 @@
             <div class="field">
               <label>Logo da loja</label>
               <input id="tema-logo" class="input" type="file" accept="image/*">
+            </div>
+
+            <div class="field">
+              <label>Imagem de fundo do cardápio (opcional)</label>
+              <input id="tema-fundo" class="input" type="file" accept="image/*">
+              <button id="btn-remover-fundo" type="button" class="btn btn-ghost"
+                style="display:none;margin-top:8px;padding:8px 14px;font-size:12px;"
+                onclick="removerFundo()">🗑️ Remover imagem de fundo</button>
             </div>
 
             <h3 style="font-size:18px;margin:24px 0 16px;">Funcionamento</h3>

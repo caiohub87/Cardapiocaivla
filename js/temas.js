@@ -33,6 +33,15 @@ function carregarFonte(fontePrincipal) {
   link.href = href;
 }
 
+// hex -> rgba com transparência (overlay sobre a imagem de fundo)
+function hexParaRgba(hex, alpha) {
+  const n = (hex || '#1a1a1a').replace('#', '');
+  const r = parseInt(n.substr(0, 2), 16),
+        g = parseInt(n.substr(2, 2), 16),
+        b = parseInt(n.substr(4, 2), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
 function aplicarTema(tema) {
   const raiz = document.documentElement;
   raiz.style.setProperty('--cor-primaria',   tema.cor_primaria);
@@ -41,6 +50,19 @@ function aplicarTema(tema) {
   raiz.style.setProperty('--cor-texto',      tema.cor_texto);
   raiz.style.setProperty('--fonte-principal', tema.fonte_principal);
   carregarFonte(tema.fonte_principal);
+
+  // Imagem de fundo do cardápio (com véu da cor de fundo por cima,
+  // pra manter o texto legível)
+  if (tema.imagem_fundo_url) {
+    const veu = hexParaRgba(tema.cor_background, 0.82);
+    document.body.style.backgroundImage =
+      `linear-gradient(${veu}, ${veu}), url('${tema.imagem_fundo_url}')`;
+    document.body.style.backgroundSize = 'cover';
+    document.body.style.backgroundPosition = 'center';
+    document.body.style.backgroundAttachment = 'fixed';
+  } else {
+    document.body.style.backgroundImage = '';
+  }
 
   // Logo (se existir elemento .logo na página)
   if (tema.logo_url) {

@@ -431,5 +431,12 @@ create policy "imagens_delete_autenticado" on storage.objects
   for delete to authenticated using (bucket_id = 'imagens');
 
 -- ============================================================
+--  FASE 4 — imagem de fundo do cardápio + dados de entrega
+-- ============================================================
+alter table temas   add column if not exists imagem_fundo_url text;
+alter table pedidos add column if not exists tipo_entrega text not null default 'retirada'; -- retirada | entrega
+alter table pedidos add column if not exists endereco text;
+
+-- ============================================================
 --  FIM DO SCHEMA
 -- ============================================================

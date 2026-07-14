@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Finalizar pedido</title>
+  <link rel="stylesheet" href="/css/base.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    .topo { padding:20px 24px; border-bottom:1px solid var(--borda); display:flex; align-items:center; gap:12px; }
+    .topo a { color:var(--cor-primaria); font-weight:700; font-size:14px; }
+    .wrap { max-width:560px; margin:0 auto; padding:24px; padding-bottom:60px; }
+    .resumo-item { display:flex; justify-content:space-between; gap:10px; padding:9px 0; border-bottom:1px solid var(--borda); font-size:14px; }
+    .resumo-item:last-of-type { border-bottom:none; }
+    .resumo-item .ads { display:block; font-size:12px; color:var(--cinza); }
+    .total-row { display:flex; justify-content:space-between; font-size:18px; font-weight:800; padding:14px 0 0; }
+    .radios { display:flex; gap:10px; flex-wrap:wrap; margin-top:6px; }
+    .radio-pill { display:flex; align-items:center; gap:8px; padding:11px 16px; border:1px solid var(--borda); border-radius:999px; cursor:pointer; font-size:14px; background:var(--superficie); }
+    .radio-pill:has(input:checked) { border-color:var(--cor-primaria); background:rgba(212,175,55,.1); }
+    .radio-pill input { accent-color:var(--cor-primaria); }
+    .sucesso { text-align:center; padding:60px 20px; }
+    .codigo { font-size:34px; font-weight:800; letter-spacing:4px; color:var(--cor-primaria); background:var(--superficie); border:1px dashed var(--cor-primaria); border-radius:14px; padding:14px 20px; display:inline-block; margin:18px 0; }
+  </style>
+</head>
+<body>
+  <div id="app" class="center-screen"><p class="muted">Carregando…</p></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/js/supabase-config.js"></script>
+  <script src="/js/temas.js"></script>
+  <script src="/js/carrinho.js"></script>
+  <script>
+    const money = v => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
+    let LOJA = null, TEMA = null;
+
+    const LABEL_PG = { pix: '💠 Pix', cartao: '💳 Cartão', dinheiro: '💵 Dinheiro' };
+
+    async function iniciar() {
+      const slug = slugDaURL();
+      const ctx = await carregarTema(slug);
+      if (!ctx) {
+        document.getElementById('app').innerHTML = '<p>Loja não encontrada.</p>';
+        return;
+      }
+      LOJA = ctx.hamburgueria;
+      TEMA = ctx.tema;
+      document.title = 'Finalizar pedido · ' + LOJA.nome;
+      initCarrinho(LOJA.slug);
+
+      if (qtdCarrinho() === 0) {
+        location.href = urlLoja();
+        return;
+      }
+      render();
+    }
+
+    function urlLoja() {
+      return '/cliente.html?slug=' + LOJA.slug;
+    }
+
+    function render() {
+      const itens = getCarrinho();
+      const metodos = TEMA.metodos_pagamento || ['pix', 'cartao', 'dinheiro'];
+
+      document.getElementById('app').className = '';
+      document.getElementById('app').innerHTML = `
+        <div class="topo">
+          <a href="${urlLoja()}">← Voltar ao cardápio</a>
+        </div>
+        <div class="wrap">
+          <h1 style="font-size:24px;font-weight:800;margin-bottom:18px;">Finalizar pedido</h1>
+
+          <div class="card" style="margin-bottom:20px;">
+            <h3 style="font-size:15px;margin-bottom:8px;">Resumo — ${LOJA.nome}</h3>
+            ${itens.map(i => `
+              <div class="resumo-item">
+                <span>${i.qtd}× ${i.nome}
+                  ${i.aditivos.length ? `<span class="ads">+ ${i.aditivos.map(a => a.nome).join(', ')}</span>` : ''}
+                </span>
+                <b>${money(subtotalItem(i))}</b>
+              </div>`).join('')}
+            <div class="total-row"><span>Total</span><span style="color:var(--cor-primaria);">${money(totalCarrinho())}</span></div>
+          </div>
+
+          <div class="field">
+            <label>Seu nome *</label>
+            <input id="c-nome" class="input" placeholder="Nome e sobrenome">
+          </div>
+          <div class="field">
+            <label>Telefone / WhatsApp *</label>
+            <input id="c-fone" class="input" placeholder="(99) 99999-9999" inputmode="tel">
+          </div>
+
+          <div class="field">
+            <label>Como quer receber?</label>
+            <div class="radios">
+              <label class="radio-pill"><input type="radio" name="entrega" value="retirada" checked onchange="toggleEndereco()"> 🏃 Retirada</label>
+              <label class="radio-pill"><input type="radio" name="entrega" value="entrega" onchange="toggleEndereco()"> 🛵 Entrega</label>
+            </div>
+          </div>
+
+          <div class="field" id="campo-endereco" style="display:none;">
+            <label>Endereço de entrega *</label>
+            <input id="c-endereco" class="input" placeholder="Rua, número, bairro, referência">
+          </div>
+
+          <div class="field">
+            <label>Pagamento</label>
+            <div class="radios">
+              ${metodos.map((m, i) => `
+                <label class="radio-pill">
+                  <input type="radio" name="pagamento" value="${m}" ${i === 0 ? 'checked' : ''}> ${LABEL_PG[m] || m}
+                </label>`).join('')}
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Observações (opcional)</label>
+            <input id="c-obs" class="input" placeholder="Ex: tirar a cebola, ponto da carne...">
+          </div>
+
+          <p id="msg" class="erro" style="min-height:18px;margin-bottom:10px;"></p>
+          <button id="btn-enviar" class="btn" style="width:100%;" onclick="enviarPedido()">
+            Confirmar pedido · ${money(totalCarrinho())}
+          </button>
+        </div>`;
+    }
+
+    function toggleEndereco() {
+      const tipo = document.querySelector('input[name="entrega"]:checked').value;
+      document.getElementById('campo-endereco').style.display = tipo === 'entrega' ? 'block' : 'none';
+    }
+
+    async function enviarPedido() {
+      const nome = document.getElementById('c-nome').value.trim();
+      const fone = document.getElementById('c-fone').value.trim();
+      const tipo = document.querySelector('input[name="entrega"]:checked').value;
+      const endereco = tipo === 'entrega' ? document.getElementById('c-endereco').value.trim() : null;
+      const pagamento = document.querySelector('input[name="pagamento"]:checked')?.value || null;
+      const obs = document.getElementById('c-obs').value.trim();
+      const msg = document.getElementById('msg');
+
+      msg.textContent = '';
+      if (!nome) { msg.textContent = 'Digite seu nome.'; return; }
+      if (!fone) { msg.textContent = 'Digite seu telefone.'; return; }
+      if (tipo === 'entrega' && !endereco) { msg.textContent = 'Digite o endereço de entrega.'; return; }
+
+      const btn = document.getElementById('btn-enviar');
+      btn.disabled = true;
+      btn.textContent = 'Enviando pedido…';
+
+      // id gerado no cliente (RLS não deixa anon ler o pedido de volta)
+      const pedidoId = crypto.randomUUID();
+      const itens = getCarrinho();
+
+      const { error: e1 } = await db.from('pedidos').insert({
+        id: pedidoId,
+        hamburgueria_id: LOJA.id,
+        cliente_nome: nome,
+        cliente_telefone: fone,
+        origem: 'site',
+        status: 'novo',
+        total_valor: totalCarrinho(),
+        metodo_pagamento: pagamento,
+        observacoes: obs || null,
+        tipo_entrega: tipo,
+        endereco
+      });
+
+      if (e1) {
+        btn.disabled = false;
+        btn.textContent = 'Confirmar pedido · ' + money(totalCarrinho());
+        msg.textContent = 'Erro ao enviar: ' + e1.message;
+        return;
+      }
+
+      const { error: e2 } = await db.from('itens_pedido').insert(
+        itens.map(i => ({
+          pedido_id: pedidoId,
+          produto_id: i.produto_id,
+          produto_nome: i.nome,
+          quantidade: i.qtd,
+          preco_unitario: precoUnitario(i),   // snapshot: produto + adicionais
+          aditivos_json: i.aditivos
+        }))
+      );
+
+      if (e2) {
+        btn.disabled = false;
+        btn.textContent = 'Confirmar pedido · ' + money(totalCarrinho());
+        msg.textContent = 'Erro ao salvar itens: ' + e2.message;
+        return;
+      }
+
+      limparCarrinho();
+      telaSucesso(pedidoId);
+    }
+
+    function telaSucesso(pedidoId) {
+      const codigo = pedidoId.slice(0, 8).toUpperCase();
+      document.getElementById('app').innerHTML = `
+        <div class="sucesso">
+          <div style="font-size:56px;">✅</div>
+          <h1 style="font-size:24px;font-weight:800;margin-top:12px;">Pedido enviado!</h1>
+          <p class="subtitulo" style="margin-top:8px;">A loja já recebeu seu pedido.<br>Guarde o código:</p>
+          <div class="codigo">${codigo}</div>
+          <p class="subtitulo">Qualquer dúvida, informe esse código à loja.</p>
+          <a class="btn" style="margin-top:22px;" href="${urlLoja()}">← Voltar ao cardápio</a>
+        </div>`;
+    }
+
+    iniciar();
+  </script>
+</body>
+</html>

@@ -18,23 +18,101 @@
     .produto {
       background:var(--superficie); border:1px solid var(--borda);
       border-radius:var(--raio); overflow:hidden; display:flex; flex-direction:column;
+      cursor:pointer; transition:transform var(--transicao), border var(--transicao);
     }
+    .produto:hover { transform:translateY(-2px); border-color:var(--cor-primaria); }
     .produto img { width:100%; height:150px; object-fit:cover; background:rgba(0,0,0,.3); }
     .produto .info { padding:14px; display:flex; flex-direction:column; gap:6px; flex:1; }
     .produto .nome { font-weight:700; }
     .produto .desc { font-size:13px; color:var(--cinza); flex:1; }
+    .produto .rodape { display:flex; justify-content:space-between; align-items:center; }
     .produto .preco { font-size:18px; font-weight:800; color:var(--cor-primaria); }
-    .indisponivel { opacity:.5; }
+    .produto .add { border:none; border-radius:999px; width:34px; height:34px; font-size:20px; font-weight:700; background:var(--cor-primaria); color:var(--cor-secundaria); cursor:pointer; }
+    .indisponivel { opacity:.5; cursor:default; }
+    .indisponivel:hover { transform:none; border-color:var(--borda); }
+
+    /* modais */
+    .modal-bg { position:fixed; inset:0; background:rgba(0,0,0,.65); display:none; place-items:end center; z-index:50; }
+    .modal-bg.open { display:grid; }
+    @media (min-width:640px) { .modal-bg { place-items:center; } }
+    .sheet {
+      width:100%; max-width:480px; max-height:88vh; overflow-y:auto;
+      background:var(--cor-background); border:1px solid var(--borda);
+      border-radius:22px 22px 0 0; padding:20px;
+    }
+    @media (min-width:640px) { .sheet { border-radius:22px; } }
+    .sheet img.foto { width:100%; height:180px; object-fit:cover; border-radius:14px; margin-bottom:14px; }
+    .fechar { float:right; border:none; background:var(--superficie); color:var(--cor-texto); border-radius:999px; width:32px; height:32px; cursor:pointer; font-size:15px; }
+    .aditivo-row { display:flex; align-items:center; gap:10px; padding:10px 4px; border-bottom:1px solid var(--borda); cursor:pointer; }
+    .aditivo-row:last-child { border-bottom:none; }
+    .aditivo-row input { width:17px; height:17px; accent-color:var(--cor-primaria); }
+    .aditivo-row .ap { margin-left:auto; color:var(--cor-primaria); font-weight:700; font-size:13px; }
+    .qtd-box { display:flex; align-items:center; gap:14px; justify-content:center; margin:16px 0; }
+    .qtd-box button { border:1px solid var(--borda); background:var(--superficie); color:var(--cor-texto); border-radius:999px; width:38px; height:38px; font-size:19px; cursor:pointer; }
+    .qtd-box b { font-size:18px; min-width:24px; text-align:center; }
+
+    /* barra flutuante do carrinho */
+    .cart-bar {
+      position:fixed; left:16px; right:16px; bottom:16px; z-index:40;
+      display:none; align-items:center; justify-content:space-between; gap:10px;
+      background:var(--cor-primaria); color:var(--cor-secundaria);
+      border-radius:999px; padding:14px 22px; font-weight:800;
+      box-shadow:0 10px 30px rgba(0,0,0,.4); cursor:pointer; border:none; width:calc(100% - 32px);
+      font-size:15px; font-family:inherit;
+    }
+    .cart-bar.show { display:flex; }
+    @media (min-width:640px) { .cart-bar { max-width:440px; left:auto; right:24px; width:auto; min-width:320px; } }
+
+    /* itens do carrinho */
+    .cart-item { display:flex; gap:10px; padding:12px 0; border-bottom:1px solid var(--borda); }
+    .cart-item:last-child { border-bottom:none; }
+    .cart-item .ci-info { flex:1; }
+    .cart-item .ci-nome { font-weight:700; font-size:14px; }
+    .cart-item .ci-ads { font-size:12px; color:var(--cinza); }
+    .cart-item .ci-preco { font-weight:800; color:var(--cor-primaria); font-size:14px; }
+    .ci-qtd { display:flex; align-items:center; gap:8px; }
+    .ci-qtd button { border:1px solid var(--borda); background:var(--superficie); color:var(--cor-texto); border-radius:8px; width:26px; height:26px; cursor:pointer; }
+    .total-row { display:flex; justify-content:space-between; font-size:17px; font-weight:800; padding:16px 0 6px; }
   </style>
 </head>
 <body>
   <div id="app" class="center-screen"><p class="muted">Carregando cardápio…</p></div>
 
+  <!-- BARRA DO CARRINHO -->
+  <button id="cart-bar" class="cart-bar" onclick="abrirCarrinho()">
+    <span id="cart-resumo">🛒 0 itens</span>
+    <span id="cart-total">R$ 0,00</span>
+  </button>
+
+  <!-- MODAL: PRODUTO -->
+  <div id="modal-produto" class="modal-bg" onclick="if(event.target===this)fecharModais()">
+    <div class="sheet">
+      <button class="fechar" onclick="fecharModais()">✕</button>
+      <div id="mp-conteudo"></div>
+    </div>
+  </div>
+
+  <!-- MODAL: CARRINHO -->
+  <div id="modal-carrinho" class="modal-bg" onclick="if(event.target===this)fecharModais()">
+    <div class="sheet">
+      <button class="fechar" onclick="fecharModais()">✕</button>
+      <h3 style="font-size:19px;margin-bottom:6px;">Seu pedido</h3>
+      <div id="mc-itens"></div>
+      <div class="total-row"><span>Total</span><span id="mc-total" style="color:var(--cor-primaria);"></span></div>
+      <button class="btn" style="width:100%;" onclick="irParaCheckout()">Finalizar pedido →</button>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="/js/supabase-config.js"></script>
   <script src="/js/temas.js"></script>
+  <script src="/js/carrinho.js"></script>
   <script>
     const money = v => 'R$ ' + Number(v).toFixed(2).replace('.', ',');
+    let LOJA = null;        // hamburgueria
+    let ADITIVOS = [];      // adicionais disponíveis da loja
+    let produtoAberto = null;
+    let qtdModal = 1;
 
     async function iniciar() {
       const slug = slugDaURL();
@@ -47,16 +125,20 @@
         return;
       }
 
-      const h = ctx.hamburgueria;
-      document.title = h.nome + ' · Cardápio';
+      LOJA = ctx.hamburgueria;
+      document.title = LOJA.nome + ' · Cardápio';
+      initCarrinho(LOJA.slug);
 
-      // busca categorias + produtos em paralelo
-      const [{ data: cats }, { data: prods }] = await Promise.all([
-        db.from('categorias').select('*').eq('hamburgueria_id', h.id).eq('ativa', true).order('ordem'),
-        db.from('produtos').select('*').eq('hamburgueria_id', h.id).order('ordem')
+      const [{ data: cats }, { data: prods }, { data: adits }] = await Promise.all([
+        db.from('categorias').select('*').eq('hamburgueria_id', LOJA.id).eq('ativa', true).order('ordem'),
+        db.from('produtos').select('*').eq('hamburgueria_id', LOJA.id).order('ordem'),
+        db.from('aditivos').select('*').eq('hamburgueria_id', LOJA.id).eq('disponivel', true).order('nome')
       ]);
 
-      renderiza(h, ctx.tema, cats || [], prods || []);
+      ADITIVOS = adits || [];
+      window._prods = prods || [];
+      renderiza(LOJA, ctx.tema, cats || [], prods || []);
+      atualizarBarra();
     }
 
     function renderiza(h, tema, cats, prods) {
@@ -68,10 +150,10 @@
           ${tema.logo_url ? `<img class="logo" src="${tema.logo_url}" alt="">` : ''}
           <div>
             <div class="nome">${h.nome}</div>
-            <div class="subtitulo">Cardápio digital</div>
+            <div class="subtitulo">Aberto das ${tema.horario_abertura || '18:00'} às ${tema.horario_fechamento || '23:00'}</div>
           </div>
         </div>
-        <div class="container">`;
+        <div class="container" style="padding-bottom:110px;">`;
 
       if (prods.length === 0) {
         html += `<div style="text-align:center;padding:60px 0" class="muted">
@@ -95,15 +177,135 @@
     }
 
     function cardProduto(p) {
-      return `<div class="produto ${p.disponivel ? '' : 'indisponivel'}">
+      const clique = p.disponivel ? `onclick="abrirProduto('${p.id}')"` : '';
+      return `<div class="produto ${p.disponivel ? '' : 'indisponivel'}" ${clique}>
         ${p.imagem_url ? `<img src="${p.imagem_url}" alt="">` : ''}
         <div class="info">
           <div class="nome">${p.nome}</div>
           <div class="desc">${p.descricao || ''}</div>
-          <div class="preco">${money(p.preco)}</div>
-          ${p.disponivel ? '' : '<span class="badge" style="background:#555;color:#fff">Indisponível</span>'}
+          <div class="rodape">
+            <span class="preco">${money(p.preco)}</span>
+            ${p.disponivel
+              ? '<button class="add">+</button>'
+              : '<span class="badge" style="background:#555;color:#fff">Esgotado</span>'}
+          </div>
         </div>
       </div>`;
+    }
+
+    // ---------- MODAL DO PRODUTO ----------
+    function abrirProduto(id) {
+      produtoAberto = window._prods.find(p => p.id === id);
+      if (!produtoAberto) return;
+      qtdModal = 1;
+
+      const p = produtoAberto;
+      document.getElementById('mp-conteudo').innerHTML = `
+        ${p.imagem_url ? `<img class="foto" src="${p.imagem_url}" alt="">` : ''}
+        <h3 style="font-size:20px;">${p.nome}</h3>
+        <p class="subtitulo" style="margin:6px 0 4px;">${p.descricao || ''}</p>
+        <p style="font-weight:800;font-size:19px;color:var(--cor-primaria);margin-bottom:12px;">${money(p.preco)}</p>
+
+        ${ADITIVOS.length ? `
+          <p style="font-weight:700;font-size:14px;margin-bottom:4px;">Adicionais</p>
+          <div id="mp-aditivos">
+            ${ADITIVOS.map(a => `
+              <label class="aditivo-row">
+                <input type="checkbox" value="${a.id}" onchange="atualizarPrecoModal()">
+                <span>${a.nome}</span>
+                <span class="ap">+${money(a.preco_adicional)}</span>
+              </label>`).join('')}
+          </div>` : ''}
+
+        <div class="qtd-box">
+          <button onclick="mudarQtdModal(-1)">−</button>
+          <b id="mp-qtd">1</b>
+          <button onclick="mudarQtdModal(1)">+</button>
+        </div>
+
+        <button class="btn" style="width:100%;" onclick="confirmarAdicionar()">
+          Adicionar · <span id="mp-subtotal">${money(p.preco)}</span>
+        </button>`;
+
+      document.getElementById('modal-produto').classList.add('open');
+    }
+
+    function aditivosSelecionados() {
+      return [...document.querySelectorAll('#mp-aditivos input:checked')].map(chk => {
+        const a = ADITIVOS.find(x => x.id === chk.value);
+        return { id: a.id, nome: a.nome, preco: Number(a.preco_adicional) };
+      });
+    }
+
+    function atualizarPrecoModal() {
+      const extras = aditivosSelecionados().reduce((s, a) => s + a.preco, 0);
+      const sub = (Number(produtoAberto.preco) + extras) * qtdModal;
+      document.getElementById('mp-subtotal').textContent = money(sub);
+      document.getElementById('mp-qtd').textContent = qtdModal;
+    }
+
+    function mudarQtdModal(d) {
+      qtdModal = Math.max(1, qtdModal + d);
+      atualizarPrecoModal();
+    }
+
+    function confirmarAdicionar() {
+      addItem(produtoAberto, qtdModal, aditivosSelecionados());
+      fecharModais();
+      atualizarBarra();
+    }
+
+    // ---------- CARRINHO ----------
+    function atualizarBarra() {
+      const n = qtdCarrinho();
+      const bar = document.getElementById('cart-bar');
+      bar.classList.toggle('show', n > 0);
+      document.getElementById('cart-resumo').textContent = `🛒 ${n} ${n === 1 ? 'item' : 'itens'}`;
+      document.getElementById('cart-total').textContent = money(totalCarrinho());
+    }
+
+    function abrirCarrinho() {
+      renderCarrinho();
+      document.getElementById('modal-carrinho').classList.add('open');
+    }
+
+    function renderCarrinho() {
+      const itens = getCarrinho();
+      const el = document.getElementById('mc-itens');
+      if (!itens.length) {
+        el.innerHTML = '<p class="muted" style="padding:14px 0;">Carrinho vazio.</p>';
+      } else {
+        el.innerHTML = itens.map(i => `
+          <div class="cart-item">
+            <div class="ci-info">
+              <div class="ci-nome">${i.nome}</div>
+              ${i.aditivos.length ? `<div class="ci-ads">+ ${i.aditivos.map(a => a.nome).join(', ')}</div>` : ''}
+              <div class="ci-preco">${money(subtotalItem(i))}</div>
+            </div>
+            <div class="ci-qtd">
+              <button onclick="alterarQtd('${i.uid}',-1)">−</button>
+              <b>${i.qtd}</b>
+              <button onclick="alterarQtd('${i.uid}',1)">+</button>
+            </div>
+          </div>`).join('');
+      }
+      document.getElementById('mc-total').textContent = money(totalCarrinho());
+    }
+
+    function alterarQtd(uid, d) {
+      mudarQtd(uid, d);
+      renderCarrinho();
+      atualizarBarra();
+      if (qtdCarrinho() === 0) fecharModais();
+    }
+
+    function irParaCheckout() {
+      if (qtdCarrinho() === 0) return;
+      location.href = '/checkout.html?slug=' + LOJA.slug;
+    }
+
+    function fecharModais() {
+      document.querySelectorAll('.modal-bg').forEach(m => m.classList.remove('open'));
     }
 
     iniciar();
