@@ -216,6 +216,7 @@
       <div class="field">
         <label>Tipo de Acesso</label>
         <select id="novo-tipo" class="input" style="cursor:pointer;">
+          <option value="owner">Dono (acesso total à loja)</option>
           <option value="admin">Admin (gerencia cardápio e pedidos)</option>
           <option value="garcom">Garçom (consulta cardápio)</option>
         </select>
@@ -330,10 +331,29 @@
         .from('hamburguerias')
         .select('*')
         .eq('id', hambId)
-        .eq('owner_email', usuario.email)
         .single();
 
       if (!h) { alert('Hamburgueria não encontrada'); location.href = '/admin'; return; }
+
+      // Permissão: desenvolvedor OU dono/admin vinculado à loja
+      const { data: dev } = await db.from('desenvolvedores')
+        .select('email').eq('email', usuario.email).maybeSingle();
+
+      if (!dev) {
+        const { data: vinculo } = await db.from('usuarios_hamburgueria')
+          .select('tipo')
+          .eq('hamburgueria_id', hambId)
+          .eq('email', usuario.email)
+          .eq('ativo', true)
+          .maybeSingle();
+
+        if (!vinculo || vinculo.tipo === 'garcom') {
+          alert('Você não tem acesso ao painel desta loja.');
+          await db.auth.signOut();
+          location.href = '/admin';
+          return;
+        }
+      }
 
       hamburgeria = h;
       $('#hamb-nome').textContent = h.nome;

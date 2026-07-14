@@ -344,6 +344,70 @@ exception when duplicate_object then
 end $$;
 
 -- ============================================================
+--  PAPÉIS: DESENVOLVEDORES vs ADMINS DE LOJA
+--  - Desenvolvedor: cria/gerencia TODAS as hamburguerias
+--  - Dono/ADM: administra SOMENTE a própria loja (não cria novas)
+-- ============================================================
+create table if not exists desenvolvedores (
+  email      text primary key,
+  criado_em  timestamptz not null default now()
+);
+
+-- >>> Cadastre aqui os emails com poder de desenvolvedor <<<
+insert into desenvolvedores (email)
+values ('dilnorappbi@gmail.com')
+on conflict (email) do nothing;
+
+alter table desenvolvedores enable row level security;
+
+-- cada um só consegue checar o próprio email (pro front saber o papel)
+drop policy if exists "dev_le_proprio" on desenvolvedores;
+create policy "dev_le_proprio" on desenvolvedores
+  for select to authenticated
+  using (email = auth.email());
+
+-- helper: o usuário logado é desenvolvedor?
+create or replace function eh_desenvolvedor()
+returns boolean
+language sql
+security definer
+stable
+as $$
+  select exists (select 1 from desenvolvedores where email = auth.email());
+$$;
+
+-- redefine: desenvolvedor tem acesso a qualquer hamburgueria;
+-- demais usuários precisam de vínculo ativo
+create or replace function pertence_hamburgueria(h_id uuid)
+returns boolean
+language sql
+security definer
+stable
+as $$
+  select eh_desenvolvedor() or exists (
+    select 1 from usuarios_hamburgueria
+    where hamburgueria_id = h_id
+      and email = auth.email()
+      and ativo = true
+  );
+$$;
+
+-- criar hamburgueria: SÓ desenvolvedor
+drop policy if exists "hamb_insert_autenticado" on hamburguerias;
+drop policy if exists "hamb_insert_dev" on hamburguerias;
+create policy "hamb_insert_dev" on hamburguerias
+  for insert to authenticated
+  with check (eh_desenvolvedor());
+
+-- vincular usuário a uma loja: só quem já pertence a ela (ou dev)
+-- (antes qualquer autenticado podia se auto-vincular — falha de segurança)
+drop policy if exists "user_insert_autenticado" on usuarios_hamburgueria;
+drop policy if exists "user_insert_membro" on usuarios_hamburgueria;
+create policy "user_insert_membro" on usuarios_hamburgueria
+  for insert to authenticated
+  with check (pertence_hamburgueria(hamburgueria_id));
+
+-- ============================================================
 --  STORAGE (imagens dos produtos) — Fase 2
 -- ============================================================
 insert into storage.buckets (id, name, public)

@@ -155,7 +155,27 @@
     }
 
     // ---------- PAINEL ----------
-    function mostrarPainel() {
+    async function mostrarPainel() {
+      // Desenvolvedor? (tabela desenvolvedores)
+      const { data: dev } = await db.from('desenvolvedores')
+        .select('email').eq('email', usuario.email).maybeSingle();
+
+      if (!dev) {
+        // Não é dev: se for ADM/dono de alguma loja, vai direto pra ela
+        const { data: vinculos } = await db.from('usuarios_hamburgueria')
+          .select('hamburgueria_id, tipo')
+          .eq('email', usuario.email).eq('ativo', true);
+
+        const acesso = (vinculos || []).find(v => v.tipo !== 'garcom');
+        if (acesso) {
+          location.href = '/admin/hamburgueria.html?id=' + acesso.hamburgueria_id;
+        } else {
+          await db.auth.signOut();
+          $('#login-msg').textContent = 'Esta conta não tem acesso a nenhum painel.';
+        }
+        return;
+      }
+
       $('#tela-login').classList.add('hidden');
       $('#tela-painel').classList.remove('hidden');
       $('#user-email').textContent = usuario.email;
@@ -163,10 +183,10 @@
     }
 
     async function carregarHamburguerias() {
+      // Desenvolvedor vê TODAS as hamburguerias da plataforma
       const { data, error } = await db
         .from('hamburguerias')
         .select('id, nome, slug, ativa, temas(*)')
-        .eq('owner_email', usuario.email)
         .order('criada_em', { ascending: false });
 
       const lista = $('#lista');
@@ -222,11 +242,8 @@
         return;
       }
 
-      // 2. tema padrão + 3. vincula owner (em paralelo)
-      await Promise.all([
-        db.from('temas').insert({ hamburgueria_id: h.id }),
-        db.from('usuarios_hamburgueria').insert({ hamburgueria_id: h.id, email: usuario.email, tipo: 'owner' })
-      ]);
+      // 2. tema padrão (o dono da loja é vinculado depois, em Gerenciar → Usuários)
+      await db.from('temas').insert({ hamburgueria_id: h.id });
 
       $('#btn-salvar').disabled = false;
       fecharModal();
