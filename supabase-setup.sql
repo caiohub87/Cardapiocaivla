@@ -355,7 +355,7 @@ create table if not exists desenvolvedores (
 
 -- >>> Cadastre aqui os emails com poder de desenvolvedor <<<
 insert into desenvolvedores (email)
-values ('dilnorappbi@gmail.com')
+values ('josecaiodasilva468@gmail.com')
 on conflict (email) do nothing;
 
 alter table desenvolvedores enable row level security;
