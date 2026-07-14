@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Gerenciar Hamburgueria</title>
   <link rel="stylesheet" href="/css/base.css">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Poppins:wght@400;600;700&family=Montserrat:wght@400;600;700&family=Roboto:wght@400;500;700&family=Playfair+Display:wght@400;600;700&family=Bebas+Neue&display=swap" rel="stylesheet">
   <style>
     .topo { display:flex; align-items:center; justify-content:space-between; padding:18px 24px; border-bottom:1px solid var(--borda); position:sticky; top:0; background:var(--cor-background); z-index:10; }
     .topo a { color:var(--cor-primaria); cursor:pointer; text-decoration:underline; font-size:13px; }
@@ -36,6 +36,16 @@
     .btn-mini:disabled { opacity:.3; cursor:not-allowed; }
     .btn-mini.toggle.on { background:var(--cor-primaria); color:var(--cor-secundaria); border-color:var(--cor-primaria); font-weight:700; }
     .grupo-titulo { margin:22px 0 12px; font-size:15px; color:var(--cinza); }
+
+    /* ---- Fase 3: editor de temas ---- */
+    .temas-layout { display:grid; grid-template-columns:1fr 340px; gap:32px; }
+    @media (max-width:800px) { .temas-layout { grid-template-columns:1fr; } }
+    .cores-grid { display:grid; grid-template-columns:1fr 1fr; gap:0 16px; }
+    .input-cor { width:100%; height:44px; padding:4px; border-radius:10px; border:1px solid var(--borda); background:rgba(0,0,0,.25); cursor:pointer; }
+    .checks { display:flex; gap:14px; flex-wrap:wrap; margin-top:6px; }
+    .check { display:flex; align-items:center; gap:6px; font-size:14px; color:var(--cor-texto); cursor:pointer; margin-bottom:0; }
+    .check input { width:16px; height:16px; accent-color:var(--cor-primaria); cursor:pointer; }
+    .pv-phone { border-radius:26px; border:1px solid var(--borda); padding:20px; max-width:340px; box-shadow:var(--sombra); transition:background .2s, color .2s; }
     .prod-card { padding:12px; display:flex; flex-direction:column; gap:6px; }
     .prod-card.off { opacity:.55; }
     .prod-card img { width:100%; height:110px; object-fit:cover; border-radius:10px; }
@@ -96,8 +106,94 @@
       </div>
 
       <!-- ABA: TEMAS -->
-      <div id="aba-temas" class="tab-content" style="padding:40px 0;text-align:center;">
-        <p class="muted">Em desenvolvimento na Fase 3…</p>
+      <div id="aba-temas" class="tab-content">
+        <div class="temas-layout" style="margin-top:20px;">
+
+          <!-- FORMULÁRIO -->
+          <div>
+            <h3 style="font-size:18px;margin-bottom:16px;">Identidade visual</h3>
+
+            <div class="cores-grid">
+              <div class="field">
+                <label>Cor primária (destaques)</label>
+                <input id="tema-cor-primaria" type="color" class="input-cor">
+              </div>
+              <div class="field">
+                <label>Cor secundária (texto do botão)</label>
+                <input id="tema-cor-secundaria" type="color" class="input-cor">
+              </div>
+              <div class="field">
+                <label>Cor de fundo</label>
+                <input id="tema-cor-bg" type="color" class="input-cor">
+              </div>
+              <div class="field">
+                <label>Cor do texto</label>
+                <input id="tema-cor-texto" type="color" class="input-cor">
+              </div>
+            </div>
+
+            <div class="field">
+              <label>Fonte</label>
+              <select id="tema-fonte" class="input" style="cursor:pointer;"></select>
+            </div>
+
+            <div class="field">
+              <label>Logo da loja</label>
+              <input id="tema-logo" class="input" type="file" accept="image/*">
+            </div>
+
+            <h3 style="font-size:18px;margin:24px 0 16px;">Funcionamento</h3>
+            <div class="cores-grid">
+              <div class="field">
+                <label>Abre às</label>
+                <input id="tema-abre" type="time" class="input">
+              </div>
+              <div class="field">
+                <label>Fecha às</label>
+                <input id="tema-fecha" type="time" class="input">
+              </div>
+            </div>
+
+            <div class="field">
+              <label>Métodos de pagamento aceitos</label>
+              <div class="checks">
+                <label class="check"><input id="pg-pix" type="checkbox"> 💠 Pix</label>
+                <label class="check"><input id="pg-cartao" type="checkbox"> 💳 Cartão</label>
+                <label class="check"><input id="pg-dinheiro" type="checkbox"> 💵 Dinheiro</label>
+              </div>
+            </div>
+
+            <p id="tema-msg" style="min-height:18px;margin-bottom:10px;" class="muted"></p>
+            <button id="btn-salvar-tema" class="btn" style="width:100%;" onclick="salvarTema()">Salvar Tema</button>
+          </div>
+
+          <!-- PREVIEW AO VIVO -->
+          <div>
+            <h3 style="font-size:18px;margin-bottom:16px;">Pré-visualização</h3>
+            <div id="pv-tema" class="pv-phone">
+              <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;">
+                <img id="pv-logo" src="" alt="" style="display:none;width:44px;height:44px;border-radius:12px;object-fit:cover;">
+                <div>
+                  <div id="pv-nome" style="font-weight:800;font-size:18px;">Minha Loja</div>
+                  <div id="pv-horario" style="font-size:12px;">Aberto das 18:00 às 23:00</div>
+                </div>
+              </div>
+              <div id="pv-card" style="border-radius:14px;padding:12px;">
+                <div style="height:90px;border-radius:10px;background:rgba(128,128,128,.25);display:grid;place-items:center;font-size:36px;margin-bottom:10px;">🍔</div>
+                <div style="font-weight:700;">X-Bacon Duplo</div>
+                <div style="font-size:12px;opacity:.6;margin:4px 0 8px;">2 carnes, bacon crocante, cheddar</div>
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <span id="pv-preco" style="font-weight:800;font-size:17px;">R$ 29,90</span>
+                  <button id="pv-btn" style="border:none;border-radius:999px;padding:8px 16px;font-weight:700;cursor:default;">Adicionar</button>
+                </div>
+              </div>
+            </div>
+            <p class="subtitulo" style="font-size:12px;margin-top:12px;">
+              ⓘ As mudanças aparecem aqui na hora. Clique em "Salvar Tema" pra aplicar na loja de verdade.
+            </p>
+          </div>
+
+        </div>
       </div>
     </div>
   </div>
@@ -212,6 +308,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="/js/supabase-config.js"></script>
   <script src="/js/admin-cardapio.js"></script>
+  <script src="/js/admin-temas.js"></script>
   <script>
     const $ = s => document.querySelector(s);
     let hamburgeria = null;
@@ -246,6 +343,7 @@
 
       carregarUsuarios();
       initCardapio(hamburgeria);   // Fase 2: cardápio
+      initTemas(hamburgeria);      // Fase 3: temas
     }
 
     async function carregarUsuarios() {
